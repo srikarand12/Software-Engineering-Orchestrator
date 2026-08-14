@@ -56,3 +56,26 @@ POST /api/v1/workflows/{executionId}/resume
 ```
 
 The goal of this project is to demonstrate workflow orchestration, parallel processing, persistence, failure recovery, and human-in-the-loop approval using Java and Spring Boot.
+
+## Workflow
+
+```mermaid
+flowchart TD
+    A[Requirement] --> B[Requirement Analysis]
+    B --> C[Planning]
+    C --> D[Architecture]
+    D --> E[Development]
+
+    E --> F[Testing]
+    E --> G[Security Review]
+
+    F --> H[Validation]
+    G --> H
+
+    H --> I[Human Approval]
+    I --> J[Documentation]
+    J --> K[Release]
+
+    I -->|Rejected| L[Retry / Resume]
+    L --> B
+```
