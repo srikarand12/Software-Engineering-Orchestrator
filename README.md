@@ -2,26 +2,27 @@
 
 This project is a Spring Boot application I built to simulate a software engineering workflow using multiple specialized agents.
 
-A requirement moves through different stages such as requirement analysis, planning, architecture, development, testing, security review, validation, documentation, and release approval.
+A requirement moves through stages such as requirement analysis, planning, architecture, development, testing, security review, validation, documentation, and release approval.
 
-Testing and security checks run in parallel, while the remaining stages follow their workflow dependencies.
+Testing and security checks run in parallel, while the remaining stages follow workflow dependencies.
 
 ## What it does
 
 - Processes software requirements through multiple engineering agents
 - Uses a workflow graph to manage dependencies
 - Runs testing and security checks in parallel
-- Handles failures and timeouts
+- Handles failures and execution timeouts
 - Stores workflow state and audit history in H2
-- Supports retrying failed workflows
+- Supports retrying failed or rejected workflows
 - Supports resuming a workflow from its last completed stage
 - Includes human approval and rejection before release
 - Includes a URL shortener with expiration and click tracking
 - Includes integration tests for the main workflow scenarios
+- Uses GitHub Actions to run Maven tests automatically
 
 ## Tech Stack
 
-Java 21, Spring Boot, Spring Data JPA, Hibernate, H2, Maven, CompletableFuture, ExecutorService, and JUnit.
+Java 21, Spring Boot, Spring Data JPA, Hibernate, H2, Maven, CompletableFuture, ExecutorService, JUnit 5, and GitHub Actions.
 
 ## Run the application
 
