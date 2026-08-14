@@ -55,10 +55,11 @@ public class OrchestrationController {
             return ResponseEntity.notFound().build();
         }
 
-        List<WorkflowAuditEntity> history =
-                workflowAuditService.getHistory(executionId);
-
-        return ResponseEntity.ok(history);
+        return ResponseEntity.ok(
+                workflowAuditService.getHistory(
+                        executionId
+                )
+        );
     }
 
     @PostMapping("/{executionId}/approve")
@@ -79,6 +80,7 @@ public class OrchestrationController {
                     state.setHumanApprovalRequired(false);
 
                     if (state.getWorkflowGraph() != null) {
+
                         state.getWorkflowGraph()
                                 .findNode("release")
                                 .ifPresent(node ->
@@ -96,10 +98,14 @@ public class OrchestrationController {
                             WorkflowStatus.COMPLETED
                     );
 
+                    state.setFinishedAt(
+                            java.time.Instant.now()
+                    );
+
                     workflowStore.save(state);
 
                     workflowAuditService.record(
-                            state.getExecutionId(),
+                            executionId,
                             "WORKFLOW_APPROVED",
                             "Workflow approved by human reviewer"
                     );
@@ -139,7 +145,7 @@ public class OrchestrationController {
                     workflowStore.save(state);
 
                     workflowAuditService.record(
-                            state.getExecutionId(),
+                            executionId,
                             "WORKFLOW_REJECTED",
                             "Workflow rejected by human reviewer"
                     );
@@ -156,10 +162,12 @@ public class OrchestrationController {
             @PathVariable String executionId) {
 
         try {
-            EngineeringState retriedState =
-                    orchestrator.retry(executionId);
 
-            return ResponseEntity.ok(retriedState);
+            return ResponseEntity.ok(
+                    orchestrator.retry(
+                            executionId
+                    )
+            );
 
         } catch (IllegalArgumentException exception) {
 
@@ -176,14 +184,84 @@ public class OrchestrationController {
             @PathVariable String executionId) {
 
         try {
-            EngineeringState resumedState =
-                    orchestrator.resume(executionId);
 
-            return ResponseEntity.ok(resumedState);
+            return ResponseEntity.ok(
+                    orchestrator.resume(
+                            executionId
+                    )
+            );
 
         } catch (IllegalArgumentException exception) {
 
             return ResponseEntity.notFound().build();
+
+        } catch (IllegalStateException exception) {
+
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/{executionId}/safe-stop")
+    public ResponseEntity<EngineeringState> safeStopWorkflow(
+            @PathVariable String executionId) {
+
+        try {
+
+            return ResponseEntity.ok(
+                    orchestrator.safeStop(
+                            executionId
+                    )
+            );
+
+        } catch (IllegalArgumentException exception) {
+
+            return ResponseEntity.notFound().build();
+
+        } catch (IllegalStateException exception) {
+
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/{executionId}/rollback")
+    public ResponseEntity<EngineeringState> rollbackWorkflow(
+            @PathVariable String executionId) {
+
+        try {
+
+            return ResponseEntity.ok(
+                    orchestrator.rollback(
+                            executionId
+                    )
+            );
+
+        } catch (IllegalArgumentException exception) {
+
+            return ResponseEntity.notFound().build();
+
+        } catch (IllegalStateException exception) {
+
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/{executionId}/replan")
+    public ResponseEntity<EngineeringState> replanWorkflow(
+            @PathVariable String executionId,
+            @RequestBody String updatedRequirement) {
+
+        try {
+
+            return ResponseEntity.ok(
+                    orchestrator.replan(
+                            executionId,
+                            updatedRequirement
+                    )
+            );
+
+        } catch (IllegalArgumentException exception) {
+
+            return ResponseEntity.badRequest().build();
 
         } catch (IllegalStateException exception) {
 

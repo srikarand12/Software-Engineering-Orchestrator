@@ -1,5 +1,7 @@
 package com.engineering.software_engineering_orchestrator;
+
 import com.engineering.software_engineering_orchestrator.orchestration.EngineeringState;
+import com.engineering.software_engineering_orchestrator.orchestration.ScenarioType;
 import com.engineering.software_engineering_orchestrator.orchestration.WorkflowStatus;
 import com.engineering.software_engineering_orchestrator.orchestration.controller.OrchestrationController;
 import com.engineering.software_engineering_orchestrator.orchestration.persistence.WorkflowAuditEntity;
@@ -9,10 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 class OrchestrationControllerIntegrationTest {
@@ -49,13 +48,8 @@ class OrchestrationControllerIntegrationTest {
                 approved.getStatus()
         );
 
-        assertTrue(
-                approved.isHumanApproved()
-        );
-
-        assertFalse(
-                approved.isHumanApprovalRequired()
-        );
+        assertTrue(approved.isHumanApproved());
+        assertFalse(approved.isHumanApprovalRequired());
     }
 
     @Test
@@ -65,8 +59,6 @@ class OrchestrationControllerIntegrationTest {
                 controller.startWorkflow(
                         "Build a URL shortener with expiration and click analytics"
                 );
-
-        assertNotNull(created);
 
         EngineeringState rejected =
                 controller.rejectWorkflow(
@@ -81,13 +73,8 @@ class OrchestrationControllerIntegrationTest {
                 rejected.getStatus()
         );
 
-        assertFalse(
-                rejected.isHumanApproved()
-        );
-
-        assertFalse(
-                rejected.isHumanApprovalRequired()
-        );
+        assertFalse(rejected.isHumanApproved());
+        assertFalse(rejected.isHumanApprovalRequired());
     }
 
     @Test
@@ -124,9 +111,9 @@ class OrchestrationControllerIntegrationTest {
                 retried.getStatus()
         );
 
-        assertFalse(
+        assertNotEquals(
+                rejected.getExecutionId(),
                 retried.getExecutionId()
-                        .equals(rejected.getExecutionId())
         );
     }
 
@@ -138,80 +125,41 @@ class OrchestrationControllerIntegrationTest {
                         "Build a URL shortener with expiration and click analytics"
                 );
 
-        EngineeringState rejected1 =
+        EngineeringState current =
                 controller.rejectWorkflow(
                                 created.getExecutionId()
                         )
                         .getBody();
 
-        assertNotNull(rejected1);
+        for (int retry = 1; retry <= 3; retry++) {
 
-        EngineeringState retry1 =
-                controller.retryWorkflow(
-                                rejected1.getExecutionId()
-                        )
-                        .getBody();
+            assertNotNull(current);
 
-        assertNotNull(retry1);
+            current =
+                    controller.retryWorkflow(
+                                    current.getExecutionId()
+                            )
+                            .getBody();
 
-        assertEquals(
-                1,
-                retry1.getRetryCount()
-        );
+            assertNotNull(current);
 
-        EngineeringState rejected2 =
-                controller.rejectWorkflow(
-                                retry1.getExecutionId()
-                        )
-                        .getBody();
+            assertEquals(
+                    retry,
+                    current.getRetryCount()
+            );
 
-        assertNotNull(rejected2);
+            current =
+                    controller.rejectWorkflow(
+                                    current.getExecutionId()
+                            )
+                            .getBody();
+        }
 
-        EngineeringState retry2 =
-                controller.retryWorkflow(
-                                rejected2.getExecutionId()
-                        )
-                        .getBody();
-
-        assertNotNull(retry2);
-
-        assertEquals(
-                2,
-                retry2.getRetryCount()
-        );
-
-        EngineeringState rejected3 =
-                controller.rejectWorkflow(
-                                retry2.getExecutionId()
-                        )
-                        .getBody();
-
-        assertNotNull(rejected3);
-
-        EngineeringState retry3 =
-                controller.retryWorkflow(
-                                rejected3.getExecutionId()
-                        )
-                        .getBody();
-
-        assertNotNull(retry3);
-
-        assertEquals(
-                3,
-                retry3.getRetryCount()
-        );
-
-        EngineeringState rejected4 =
-                controller.rejectWorkflow(
-                                retry3.getExecutionId()
-                        )
-                        .getBody();
-
-        assertNotNull(rejected4);
+        assertNotNull(current);
 
         assertTrue(
                 controller.retryWorkflow(
-                        rejected4.getExecutionId()
+                        current.getExecutionId()
                 ).getStatusCode().is4xxClientError()
         );
     }
@@ -223,13 +171,6 @@ class OrchestrationControllerIntegrationTest {
                 controller.startWorkflow(
                         "Build a URL shortener with expiration and click analytics"
                 );
-
-        assertNotNull(created);
-
-        assertEquals(
-                WorkflowStatus.WAITING_FOR_APPROVAL,
-                created.getStatus()
-        );
 
         EngineeringState resumed =
                 controller.resumeWorkflow(
@@ -258,15 +199,9 @@ class OrchestrationControllerIntegrationTest {
                         "Build a URL shortener with expiration and click analytics"
                 );
 
-        assertNotNull(created);
-
-        EngineeringState approved =
-                controller.approveWorkflow(
-                                created.getExecutionId()
-                        )
-                        .getBody();
-
-        assertNotNull(approved);
+        controller.approveWorkflow(
+                created.getExecutionId()
+        );
 
         List<WorkflowAuditEntity> history =
                 controller.getWorkflowHistory(
@@ -301,6 +236,212 @@ class OrchestrationControllerIntegrationTest {
                                         event.getEventType()
                                 )
                         )
+        );
+    }
+
+    @Test
+    void shouldHandleGreenfieldScenario() {
+
+        EngineeringState state =
+                controller.startWorkflow(
+                        "Build a URL shortener with expiration and click analytics"
+                );
+
+        assertEquals(
+                ScenarioType.GREENFIELD,
+                state.getScenarioType()
+        );
+
+        assertFalse(
+                state.getTasks().isEmpty()
+        );
+
+        assertFalse(
+                state.getValidationResults().isEmpty()
+        );
+    }
+
+    @Test
+    void shouldHandleBrownfieldScenario() {
+
+        EngineeringState state =
+                controller.startWorkflow(
+                        "Add custom aliases to the existing URL shortener without breaking current APIs"
+                );
+
+        assertEquals(
+                ScenarioType.BROWNFIELD,
+                state.getScenarioType()
+        );
+
+        assertFalse(
+                state.getRisks().isEmpty()
+        );
+    }
+
+    @Test
+    void shouldHandleAmbiguousScenario() {
+
+        EngineeringState state =
+                controller.startWorkflow(
+                        "Improve the URL shortener"
+                );
+
+        assertEquals(
+                ScenarioType.AMBIGUOUS,
+                state.getScenarioType()
+        );
+
+        assertFalse(
+                state.getAmbiguities().isEmpty()
+        );
+    }
+
+    @Test
+    void shouldSafeStopWorkflow() {
+
+        EngineeringState created =
+                controller.startWorkflow(
+                        "Build a URL shortener"
+                );
+
+        EngineeringState stopped =
+                controller.safeStopWorkflow(
+                                created.getExecutionId()
+                        )
+                        .getBody();
+
+        assertNotNull(stopped);
+
+        assertEquals(
+                WorkflowStatus.SAFE_STOPPED,
+                stopped.getStatus()
+        );
+
+        assertTrue(
+                stopped.isSafeStopped()
+        );
+    }
+
+    @Test
+    void shouldRollbackWorkflowBeforeRelease() {
+
+        EngineeringState created =
+                controller.startWorkflow(
+                        "Build a URL shortener"
+                );
+
+        EngineeringState rolledBack =
+                controller.rollbackWorkflow(
+                                created.getExecutionId()
+                        )
+                        .getBody();
+
+        assertNotNull(rolledBack);
+
+        assertEquals(
+                WorkflowStatus.ROLLED_BACK,
+                rolledBack.getStatus()
+        );
+
+        assertTrue(
+                rolledBack.isRolledBack()
+        );
+
+        assertEquals(
+                1,
+                rolledBack.getRollbackCount()
+        );
+    }
+
+    @Test
+    void shouldReplanWhenRequirementChanges() {
+
+        EngineeringState created =
+                controller.startWorkflow(
+                        "Build a URL shortener"
+                );
+
+        EngineeringState replanned =
+                controller.replanWorkflow(
+                                created.getExecutionId(),
+                                "Add custom aliases to the existing URL shortener without breaking current APIs"
+                        )
+                        .getBody();
+
+        assertNotNull(replanned);
+
+        assertTrue(
+                replanned.isReplanned()
+        );
+
+        assertEquals(
+                1,
+                replanned.getReplanCount()
+        );
+
+        assertEquals(
+                ScenarioType.BROWNFIELD,
+                replanned.getScenarioType()
+        );
+
+        assertEquals(
+                WorkflowStatus.WAITING_FOR_APPROVAL,
+                replanned.getStatus()
+        );
+    }
+
+    @Test
+    void shouldRecordGuardrailsAndMetrics() {
+
+        EngineeringState state =
+                controller.startWorkflow(
+                        "Build a URL shortener with expiration and click analytics"
+                );
+
+        assertFalse(
+                state.getGuardrailChecks().isEmpty()
+        );
+
+        assertNotNull(
+                state.getMetrics()
+        );
+
+        assertTrue(
+                state.getMetrics()
+                        .getEndToEndLatencyMs() >= 0
+        );
+
+        assertEquals(
+                100.0,
+                state.getMetrics()
+                        .getSuccessRate()
+        );
+    }
+
+    @Test
+    void shouldCreateFinalEngineeringSummary() {
+
+        EngineeringState state =
+                controller.startWorkflow(
+                        "Build a URL shortener with expiration and click analytics"
+                );
+
+        assertNotNull(
+                state.getFinalEngineeringSummary()
+        );
+
+        assertFalse(
+                state.getFinalEngineeringSummary()
+                        .isBlank()
+        );
+
+        assertFalse(
+                state.getArtifacts().isEmpty()
+        );
+
+        assertFalse(
+                state.getLimitations().isEmpty()
         );
     }
 }

@@ -7,5 +7,7 @@ public enum WorkflowStatus {
     WAITING_FOR_APPROVAL,
     COMPLETED,
     REJECTED,
-    FAILED
+    FAILED,
+    SAFE_STOPPED,
+    ROLLED_BACK
 }
